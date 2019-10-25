@@ -109,6 +109,7 @@ public:
         , m_serviceTakeoff()
         , m_serviceLand()
         , m_serviceGame()
+        , m_serviceAuto()
         , m_thrust(0)
         , m_startZ(0)
         , m_trimThrust(43000)
@@ -120,6 +121,7 @@ public:
         m_subscribeCmdV = nh.subscribe("cmdV", 1, &Controller::cmdVChanged, this);
         m_subscribeDroneState = nh.subscribe("mocap", 1, &Controller::droneMoved, this);
         m_serviceTakeoff = nh.advertiseService("cftakeoff", &Controller::takeoff, this);
+        m_serviceAuto = nh.advertiseService("cfauto", &Controller::automatic, this);
         m_serviceGame = nh.advertiseService("cfplay", &Controller::play, this);
         m_serviceLand = nh.advertiseService("cfland", &Controller::land, this);
     }
@@ -188,6 +190,15 @@ private:
     {
         ROS_INFO("playing requested!");
         m_state = Playing;
+        return true;
+    }
+
+    bool automatic(
+        std_srvs::Empty::Request& req,
+        std_srvs::Empty::Response& res)
+    {
+        ROS_INFO("automatic requested!");
+        m_state = Automatic;
         return true;
     }
 
@@ -419,6 +430,7 @@ private:
     ros::ServiceServer m_serviceTakeoff;
     ros::ServiceServer m_serviceLand;
     ros::ServiceServer m_serviceGame;
+    ros::ServiceServer m_serviceAuto;
     float m_thrust;
     float m_trimThrust;
     float m_startZ;
