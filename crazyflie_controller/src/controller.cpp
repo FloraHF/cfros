@@ -360,6 +360,13 @@ private:
                 cmdV[1] = m_cmdV[1];
                 cmdV[2] = m_pidZ.update(0.0, positionErr[2]);
 
+                geometry_msgs::Twist cmdVtemp;
+                cmdVtemp.linear.x = cmdV[0];
+                cmdVtemp.linear.y = cmdV[1];
+                cmdVtemp.linear.z = cmdV[2];
+//                ROS_INFO("publish intermeidate velocity cmd");
+                m_pubCmdVtemp.publish(cmdVtemp);
+
                 Eigen::Vector3d velocityErrBody = m_Cbe*(cmdV - m_droneVelocityWorld);
                 geometry_msgs::Twist msg;
                 msg.linear.x = m_pidVx.update(0, velocityErrBody[0]);
