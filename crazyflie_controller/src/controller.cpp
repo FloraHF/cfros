@@ -127,7 +127,7 @@ public:
         m_subscribeGoal = nh.subscribe("goal", 1, &Controller::goalChanged, this);
         m_subscribeCmdV = nh.subscribe("cmdV", 1, &Controller::cmdVChanged, this);
         m_subscribeDroneState = nh.subscribe("mocap", 1, &Controller::droneMoved, this);
-        m_subscribePQRT = nh.subscribe("pqrt", &Controller::pqrtChanged, this):
+        m_subscribePQRT = nh.subscribe("pqrt", 1, &Controller::pqrtChanged, this);
 
         m_serviceTakeoff = nh.advertiseService("cftakeoff", &Controller::takeoff, this);
         m_serviceAuto = nh.advertiseService("cfauto", &Controller::automatic, this);
@@ -181,7 +181,7 @@ private:
     void pqrtChanged(
         const geometry_msgs::Twist& msg)
     {
-        m_pqrt = msg
+        m_pqrt = msg;
     }
 
     bool takeoff(
