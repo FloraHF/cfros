@@ -102,14 +102,20 @@ public:
         , m_dronePositionWorld()
         , m_droneVelocityWorld()
         , m_droneEuler()
+        , m_pqrt()
         , m_Cbe()
         , m_subscribeGoal()
         , m_subscribeCmdV()
         , m_subscribeDroneState()
+        , m_subscribePQRT()
         , m_serviceTakeoff()
         , m_serviceLand()
         , m_serviceGame()
         , m_serviceAuto()
+        , m_serviceIdentRoll()
+        , m_serviceIdentPitch()
+        , m_serviceIdentYaw()
+        , m_serviceIdentThrust()
         , m_thrust(0)
         , m_startZ(0)
         , m_trimThrust(43000)
@@ -117,13 +123,21 @@ public:
         ros::NodeHandle nh;
         m_pubNav = nh.advertise<geometry_msgs::Twist>("cmd_vel", 1);
         m_pubCmdVtemp = nh.advertise<geometry_msgs::Twist>("cmdVtemp", 1);
+
         m_subscribeGoal = nh.subscribe("goal", 1, &Controller::goalChanged, this);
         m_subscribeCmdV = nh.subscribe("cmdV", 1, &Controller::cmdVChanged, this);
         m_subscribeDroneState = nh.subscribe("mocap", 1, &Controller::droneMoved, this);
+        m_subscribePQRT = nh.subscribe("pqrt", &Controller::pqrtChanged, this):
+
         m_serviceTakeoff = nh.advertiseService("cftakeoff", &Controller::takeoff, this);
         m_serviceAuto = nh.advertiseService("cfauto", &Controller::automatic, this);
         m_serviceGame = nh.advertiseService("cfplay", &Controller::play, this);
         m_serviceLand = nh.advertiseService("cfland", &Controller::land, this);
+
+        m_serviceIdentRoll   = nh.advertiseService("cmdroll",   &Controller::cmdroll, this);
+        m_serviceIdentPitch  = nh.advertiseService("cmdpitch",  &Controller::cmdpitch, this);
+        m_serviceIdentYaw    = nh.advertiseService("cmdyaw",    &Controller::cmdyaw, this);
+        m_serviceIdentThrust = nh.advertiseService("cmdthrust", &Controller::cmdthrust, this);
     }
 
     void run(double frequency)
@@ -164,6 +178,12 @@ private:
         m_Cbe = quaternion_to_Cbe(msg);
     }
 
+    void pqrtChanged(
+        const geometry_msgs::Twist& msg)
+    {
+        m_pqrt = msg
+    }
+
     bool takeoff(
         std_srvs::Empty::Request& req,
         std_srvs::Empty::Response& res)
@@ -199,6 +219,46 @@ private:
     {
         ROS_INFO("automatic requested!");
         m_state = Automatic;
+        return true;
+    }
+
+    bool cmdroll(
+        std_srvs::Empty::Request& req,
+        std_srvs::Empty::Response& res)
+    {
+
+        ROS_INFO("roll model identification");
+        m_state = IdentRoll;
+        return true;
+    }
+
+    bool cmdpitch(
+        std_srvs::Empty::Request& req,
+        std_srvs::Empty::Response& res)
+    {
+
+        ROS_INFO("pitch model identification");
+        m_state = IdentPitch;
+        return true;
+    }
+
+    bool cmdyaw(
+        std_srvs::Empty::Request& req,
+        std_srvs::Empty::Response& res)
+    {
+
+        ROS_INFO("yaw model identification");
+        m_state = IdentYaw;
+        return true;
+    }
+
+    bool cmdthrust(
+        std_srvs::Empty::Request& req,
+        std_srvs::Empty::Response& res)
+    {
+
+        ROS_INFO("thrust model identification");
+        m_state = IdentThrust;
         return true;
     }
 
@@ -388,6 +448,78 @@ private:
             }
             break;
 
+        case IdentRoll:
+            {
+                Eigen::Vector3d positionErr = m_goal - m_dronePositionWorld;
+                Eigen::Vector3d cmdV;
+                cmdV[0] = m_pidX.update(0.0, positionErr[0]);
+                cmdV[1] = m_pidY.update(0.0, positionErr[1]);
+                cmdV[2] = m_pidZ.update(0.0, positionErr[2]);
+
+                Eigen::Vector3d velocityErrBody = m_Cbe*(cmdV - m_droneVelocityWorld);
+                geometry_msgs::Twist msg;
+                msg.linear.x = m_pidVx.update(0, velocityErrBody[0]);
+                msg.linear.y = m_pqrt.linear.y;
+                msg.linear.z = m_pidVz.update(0, velocityErrBody[2]) + m_trimThrust;
+                msg.angular.z = m_pidYaw.update(0.0, m_droneEuler[2]);
+                m_pubNav.publish(msg);
+            }
+            break;
+
+        case IdentPitch:
+            {
+                Eigen::Vector3d positionErr = m_goal - m_dronePositionWorld;
+                Eigen::Vector3d cmdV;
+                cmdV[0] = m_pidX.update(0.0, positionErr[0]);
+                cmdV[1] = m_pidY.update(0.0, positionErr[1]);
+                cmdV[2] = m_pidZ.update(0.0, positionErr[2]);
+
+                Eigen::Vector3d velocityErrBody = m_Cbe*(cmdV - m_droneVelocityWorld);
+                geometry_msgs::Twist msg;
+                msg.linear.x = m_pqrt.linear.x;
+                msg.linear.y = m_pidVy.update(0, velocityErrBody[1]);
+                msg.linear.z = m_pidVz.update(0, velocityErrBody[2]) + m_trimThrust;
+                msg.angular.z = m_pidYaw.update(0.0, m_droneEuler[2]);
+                m_pubNav.publish(msg);
+            }
+            break;
+
+        case IdentYaw:
+            {
+                Eigen::Vector3d positionErr = m_goal - m_dronePositionWorld;
+                Eigen::Vector3d cmdV;
+                cmdV[0] = m_pidX.update(0.0, positionErr[0]);
+                cmdV[1] = m_pidY.update(0.0, positionErr[1]);
+                cmdV[2] = m_pidZ.update(0.0, positionErr[2]);
+
+                Eigen::Vector3d velocityErrBody = m_Cbe*(cmdV - m_droneVelocityWorld);
+                geometry_msgs::Twist msg;
+                msg.linear.x = m_pidVx.update(0, velocityErrBody[0]);
+                msg.linear.y = m_pidVy.update(0, velocityErrBody[1]);
+                msg.linear.z =  m_pidVz.update(0, velocityErrBody[2]) + m_trimThrust;
+                msg.angular.z = m_pqrt.angular.z;
+                m_pubNav.publish(msg);
+            }
+            break;
+
+        case IdentThrust:
+            {
+                Eigen::Vector3d positionErr = m_goal - m_dronePositionWorld;
+                Eigen::Vector3d cmdV;
+                cmdV[0] = m_pidX.update(0.0, positionErr[0]);
+                cmdV[1] = m_pidY.update(0.0, positionErr[1]);
+                cmdV[2] = m_pidZ.update(0.0, positionErr[2]);
+
+                Eigen::Vector3d velocityErrBody = m_Cbe*(cmdV - m_droneVelocityWorld);
+                geometry_msgs::Twist msg;
+                msg.linear.x = m_pidVx.update(0, velocityErrBody[0]);
+                msg.linear.y = m_pidVy.update(0, velocityErrBody[1]);
+                msg.linear.z =  m_pqrt.linear.z + m_trimThrust;
+                msg.angular.z = m_pidYaw.update(0.0, m_droneEuler[2]);
+                m_pubNav.publish(msg);
+            }
+            break;
+
         case Idle:
             {
                 geometry_msgs::Twist msg;
@@ -405,6 +537,10 @@ private:
         TakingOff = 2,
         Landing = 3,
         Playing = 4,
+        IdentRoll = 5,
+        IdentPitch = 6,
+        IdentYaw = 7,
+        IdentThrust = 8,
     };
 
 private:
@@ -424,13 +560,19 @@ private:
     Eigen::Vector3d m_droneVelocityWorld;
     Eigen::Vector3d m_droneEuler;
     Eigen::Matrix3d m_Cbe;
+    geometry_msgs::Twist m_pqrt;
     ros::Subscriber m_subscribeGoal;
     ros::Subscriber m_subscribeCmdV;
     ros::Subscriber m_subscribeDroneState;
+    ros::Subscriber m_subscribePQRT;
     ros::ServiceServer m_serviceTakeoff;
     ros::ServiceServer m_serviceLand;
     ros::ServiceServer m_serviceGame;
     ros::ServiceServer m_serviceAuto;
+    ros::ServiceServer m_serviceIdentRoll;
+    ros::ServiceServer m_serviceIdentPitch;
+    ros::ServiceServer m_serviceIdentYaw;
+    ros::ServiceServer m_serviceIdentThrust;
     float m_thrust;
     float m_trimThrust;
     float m_startZ;
