@@ -385,8 +385,10 @@ private:
             {
                  m_goal[0] = m_dronePositionWorld[0];
                  m_goal[1] = m_dronePositionWorld[1];
-                 m_goal[2] = m_startZ + 0.05;
-                if (m_dronePositionWorld[2] <= m_startZ + 0.1) {
+                 // m_goal[2] = m_startZ + 0.05;
+                 m_goal[2] = 0.1;
+                // if (m_dronePositionWorld[2] <= m_startZ + 0.1) {
+                if (m_dronePositionWorld[2] <= 0.15) {
                     m_state = Idle;
                     geometry_msgs::Twist msg;
                     m_pubNav.publish(msg);
@@ -399,12 +401,15 @@ private:
 //                std::cout<<"automatic";
 //                pidVReset();
                 Eigen::Vector3d positionErr = m_goal - m_dronePositionWorld;
+                // std::cout<<"cmdVz, dz\t"<<m_goal[2]<<"\t\t"<<positionErr[2]<<std::endl;
 
                 Eigen::Vector3d cmdV;
                 cmdV[0] = m_pidX.update(0.0, positionErr[0]);
                 cmdV[1] = m_pidY.update(0.0, positionErr[1]);
                 cmdV[2] = m_pidZ.update(0.0, positionErr[2]);
-//                std::cout<<"cmdVz, dz\t"<<cmdV[2]<<"\t\t"<<positionErr[2]<<std::endl;
+                // std::cout<<"cmdVz, dx\t"<<m_goal[0]*100<<"\t\t"<<m_dronePositionWorld[0]*100<<std::endl;
+                // std::cout<<"cmdVz, dy\t"<<m_goal[1]*100<<"\t\t"<<m_dronePositionWorld[1]*100<<std::endl;
+                // std::cout<<"cmdVz, dz\t"<<m_goal[2]*100<<"\t\t"<<m_dronePositionWorld[2]*100<<std::endl;
 
                 geometry_msgs::Twist cmdVtemp;
                 cmdVtemp.linear.x = cmdV[0];
