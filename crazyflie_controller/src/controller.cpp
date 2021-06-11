@@ -122,7 +122,7 @@ public:
     {
         ros::NodeHandle nh;
         m_pubNav = nh.advertise<geometry_msgs::Twist>("cmd_vel", 1);
-        m_pubCmdVtemp = nh.advertise<geometry_msgs::Twist>("cmdVtemp", 1);
+        m_pubCmdVtemp = nh.advertise<geometry_msgs::TwistStamped>("cmdVtemp", 1);
 
         m_subscribeGoal = nh.subscribe("goal", 1, &Controller::goalChanged, this);
         m_subscribeCmdV = nh.subscribe("cmdV", 1, &Controller::cmdVChanged, this);
@@ -411,10 +411,11 @@ private:
                 // std::cout<<"cmdVz, dy\t"<<m_goal[1]*100<<"\t\t"<<m_dronePositionWorld[1]*100<<std::endl;
                 // std::cout<<"cmdVz, dz\t"<<m_goal[2]*100<<"\t\t"<<m_dronePositionWorld[2]*100<<std::endl;
 
-                geometry_msgs::Twist cmdVtemp;
-                cmdVtemp.linear.x = cmdV[0];
-                cmdVtemp.linear.y = cmdV[1];
-                cmdVtemp.linear.z = cmdV[2];
+                geometry_msgs::TwistStamped cmdVtemp;
+                cmdVtemp.header.stamp = ros::Time::now();
+                cmdVtemp.twist.linear.x = cmdV[0];
+                cmdVtemp.twist.linear.y = cmdV[1];
+                cmdVtemp.twist.linear.z = cmdV[2];
 //                ROS_INFO("publish intermeidate velocity cmd");
                 m_pubCmdVtemp.publish(cmdVtemp);
 
@@ -436,10 +437,11 @@ private:
                 cmdV[1] = m_cmdV[1];
                 cmdV[2] = m_pidZ.update(0.0, positionErr[2]);
 
-                geometry_msgs::Twist cmdVtemp;
-                cmdVtemp.linear.x = cmdV[0];
-                cmdVtemp.linear.y = cmdV[1];
-                cmdVtemp.linear.z = cmdV[2];
+                geometry_msgs::TwistStamped cmdVtemp;
+                cmdVtemp.header.stamp = ros::Time::now();
+                cmdVtemp.twist.linear.x = cmdV[0];
+                cmdVtemp.twist.linear.y = cmdV[1];
+                cmdVtemp.twist.linear.z = cmdV[2];
 //                ROS_INFO("publish intermeidate velocity cmd");
                 m_pubCmdVtemp.publish(cmdVtemp);
 
